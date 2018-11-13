@@ -1,0 +1,53 @@
+﻿@page "/"
+@inject HttpClient Http
+
+<div>
+    <input type="file" id="fileSelect" style="display: none" onchange="app.createObjectUrl(this.files)" />
+    <a href="#" id="btnSelect" onclick="@ShowFileSelector">Select a file...</a>
+</div>
+@if (!string.IsNullOrEmpty(blobUrl))
+{
+    <div>
+        Blob URL: <input type="text" id="txtBlobUrl" bind="blobUrl" style="width: 600px;" />
+    </div>
+    <hr />
+    <div>
+        <button class="btn btn-primary" type="button" role="button" onclick="@LoadBlob">Load Blob</button>
+    </div>
+    <div>
+        @if (blobSize > 0)
+        {
+            <div>Blob size: @blobSize</div>
+        }
+    </div>
+}
+@functions {
+    string blobUrl = string.Empty;
+    int blobSize = 0;
+
+    public async Task ShowFileSelector() =>
+        await JSRuntime.Current.InvokeAsync<object>("app.showFileSelector", "fileSelect", new DotNetObjectRef(this));
+
+    [JSInvokable]
+    public void SetBlobUrl(string blobUrl)
+    {
+        this.blobUrl = blobUrl;
+        StateHasChanged();
+    }
+
+    public async Task LoadBlob()
+    {
+        if(!string.IsNullOrEmpty(blobUrl))
+        {
+            // Remove blob: scheme from URL as HttpRequestMessage does not allow it.
+            // Append #blob target to end of the url so that custom fetch recognizes at as a blob request.
+            // See index.html for details.
+            if (blobUrl.StartsWith("blob:"))
+                blobUrl = blobUrl.Substring("blob:".Length) + "#blob";
+            byte[] blobData = await Http.GetByteArrayAsync(blobUrl);
+            blobSize = blobData.Length;
+            Console.WriteLine(blobData.Length);
+            StateHasChanged();
+        }
+    }
+}
